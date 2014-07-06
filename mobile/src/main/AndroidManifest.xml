@@ -18,7 +18,7 @@
             android:value="@integer/google_play_services_version" />
 
         <activity
-            android:name="com.aggressivesquid.sonostouchless.MainActivity"
+            android:name=".MainActivity"
             android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -30,7 +30,7 @@
         <service android:name="org.teleal.cling.android.AndroidUpnpServiceImpl" />
 
         <receiver
-            android:name="com.aggressivesquid.sonostouchless.broadcast.ConnectivityChangeReceiver"
+            android:name=".broadcast.ConnectivityChangeReceiver"
             android:enabled="true"
             android:exported="false" >
             <intent-filter>
@@ -39,7 +39,7 @@
         </receiver>
 
         <service
-            android:name="com.aggressivesquid.sonostouchless.service.SonosControlService"
+            android:name=".service.SonosControlService"
             android:enabled="true"
             android:exported="false" >
         </service>

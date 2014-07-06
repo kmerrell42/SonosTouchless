@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
 import android.util.Log;
+
 import org.teleal.cling.android.AndroidUpnpService;
 import org.teleal.cling.android.AndroidUpnpServiceImpl;
 import org.teleal.cling.controlpoint.ActionCallback;
@@ -77,7 +78,6 @@ public class SonosControlService extends IntentService {
                 serviceConnection,
                 Context.BIND_AUTO_CREATE
         );
-
     }
 
     class BrowseRegistryListener extends DefaultRegistryListener {

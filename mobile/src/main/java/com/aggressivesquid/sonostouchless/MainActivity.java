@@ -230,16 +230,14 @@ public class MainActivity extends FragmentActivity {
                 if (actionsAreAvailable && stateVarsAreAvailable) {
                     runOnUiThread(new Runnable() {
                         public void run() {
-                            if (service != null) {
-                                DeviceDisplay d = new DeviceDisplay(device);
-                                int position = listAdapter.getPosition(d);
-                                if (position >= 0) {
-                                    // Device already in the list, re-set new value at same position
-                                    listAdapter.remove(d);
-                                    listAdapter.insert(d, position);
-                                } else {
-                                    listAdapter.add(d);
-                                }
+                            DeviceDisplay d = new DeviceDisplay(device);
+                            int position = listAdapter.getPosition(d);
+                            if (position >= 0) {
+                                // Device already in the list, re-set new value at same position
+                                listAdapter.remove(d);
+                                listAdapter.insert(d, position);
+                            } else {
+                                listAdapter.add(d);
                             }
                         }
                     });
