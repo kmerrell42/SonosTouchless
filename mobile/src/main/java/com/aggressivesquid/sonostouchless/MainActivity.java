@@ -1,9 +1,12 @@
 package com.aggressivesquid.sonostouchless;
 
+import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentSender;
 import android.content.ServiceConnection;
+import android.location.Location;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v4.app.FragmentActivity;
@@ -17,7 +20,17 @@ import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.aggressivesquid.sonostouchless.service.GeofenceTransitionService;
 import com.aggressivesquid.sonostouchless.widget.DeviceListItem;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesClient;
+import com.google.android.gms.location.Geofence;
+import com.google.android.gms.location.LocationClient;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+
 import org.teleal.cling.android.AndroidUpnpService;
 import org.teleal.cling.android.AndroidUpnpServiceImpl;
 import org.teleal.cling.controlpoint.ActionCallback;
@@ -33,10 +46,18 @@ import org.teleal.cling.model.types.UDAServiceId;
 import org.teleal.cling.registry.DefaultRegistryListener;
 import org.teleal.cling.registry.Registry;
 
-public class MainActivity extends FragmentActivity {
+import java.util.ArrayList;
+import java.util.List;
+
+public class MainActivity extends FragmentActivity implements
+        GooglePlayServicesClient.ConnectionCallbacks,
+        GooglePlayServicesClient.OnConnectionFailedListener {
 
     private static final ServiceId avTransportServiceId = new UDAServiceId("AVTransport");
     private static final String TAG = MainActivity.class.getSimpleName();
+    private static final int CONNECTION_FAILURE_RESOLUTION_REQUEST = 10;
+    private static final String FENCE_ID = "fenceId";
+    public static final long FENCE_RADIUS = 125l;
 
     private ArrayAdapter<DeviceDisplay> listAdapter;
 
@@ -67,6 +88,10 @@ public class MainActivity extends FragmentActivity {
         }
     };
     private TextView errorDisplay;
+    private LocationClient locationClient;
+    private Location currentLocation;
+    private LocationRequest locationUpdateRequest;
+    private LocationListener locationUpdateListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -114,6 +139,36 @@ public class MainActivity extends FragmentActivity {
                 serviceConnection,
                 Context.BIND_AUTO_CREATE
         );
+
+        // TODO: Wait until the user has specifically requested to set a new geo loc? Maybe not.
+        locationClient = new LocationClient(this, this, this);
+
+        locationUpdateRequest = new LocationRequest();
+        locationUpdateRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationUpdateRequest.setFastestInterval(2000l);
+        locationUpdateRequest.setSmallestDisplacement(4);
+        locationUpdateRequest.setInterval(5000l);
+
+        locationUpdateListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                currentLocation = location;
+                Log.d("MyLocation", location.toString());
+            }
+        };
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        locationClient.connect();
+    }
+
+    @Override
+    protected void onStop() {
+        locationClient.removeLocationUpdates(locationUpdateListener);
+        locationClient.disconnect();
+        super.onStop();
     }
 
     void pause(AndroidUpnpService upnpService, Service service) {
@@ -123,19 +178,19 @@ public class MainActivity extends FragmentActivity {
         // Executes asynchronous in the background
         upnpService.getControlPoint().execute(new ActionCallback(actionInvocation) {
 
-            @Override
-            public void success(ActionInvocation invocation) {
-                assert invocation.getOutput().length == 0;
-                Log.i(TAG, "Successfully called action!");
-            }
+                                                  @Override
+                                                  public void success(ActionInvocation invocation) {
+                                                      assert invocation.getOutput().length == 0;
+                                                      Log.i(TAG, "Successfully called action!");
+                                                  }
 
-            @Override
-            public void failure(ActionInvocation invocation,
-                                UpnpResponse operation,
-                                String defaultMsg) {
-                System.err.println(defaultMsg);
-            }
-        }
+                                                  @Override
+                                                  public void failure(ActionInvocation invocation,
+                                                                      UpnpResponse operation,
+                                                                      String defaultMsg) {
+                                                      System.err.println(defaultMsg);
+                                                  }
+                                              }
         );
     }
 
@@ -148,19 +203,19 @@ public class MainActivity extends FragmentActivity {
         // Executes asynchronous in the background
         upnpService.getControlPoint().execute(new ActionCallback(actionInvocation) {
 
-                    @Override
-                    public void success(ActionInvocation invocation) {
-                        assert invocation.getOutput().length == 0;
-                        Log.i(TAG, "Successfully called action!");
-                    }
+                                                  @Override
+                                                  public void success(ActionInvocation invocation) {
+                                                      assert invocation.getOutput().length == 0;
+                                                      Log.i(TAG, "Successfully called action!");
+                                                  }
 
-                    @Override
-                    public void failure(ActionInvocation invocation,
-                                        UpnpResponse operation,
-                                        String defaultMsg) {
-                        System.err.println(defaultMsg);
-                    }
-                }
+                                                  @Override
+                                                  public void failure(ActionInvocation invocation,
+                                                                      UpnpResponse operation,
+                                                                      String defaultMsg) {
+                                                      System.err.println(defaultMsg);
+                                                  }
+                                              }
         );
     }
 
@@ -174,12 +229,93 @@ public class MainActivity extends FragmentActivity {
     }
 
     @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+       getMenuInflater().inflate(R.menu.main, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == 0 && upnpService != null) {
-            upnpService.getRegistry().removeAllRemoteDevices();
-            upnpService.getControlPoint().search();
+        switch (item.getItemId()) {
+            case (R.id.geopoint):
+                setGeoPointToCurrentLoc();
+                break;
+
         }
+//        if (item.getItemId() == 0 && upnpService != null) {
+//            upnpService.getRegistry().removeAllRemoteDevices();
+//            upnpService.getControlPoint().search();
+//        }
         return false;
+    }
+
+    private void setGeoPointToCurrentLoc() {
+        Geofence.Builder fenceBuilder = new Geofence.Builder();
+        fenceBuilder.setRequestId(FENCE_ID);
+        fenceBuilder.setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT);
+        fenceBuilder.setCircularRegion(currentLocation.getLatitude(), currentLocation.getLongitude(), FENCE_RADIUS);
+        fenceBuilder.setExpirationDuration(Geofence.NEVER_EXPIRE);
+
+        List<Geofence> fences = new ArrayList<Geofence>();
+        fences.add(fenceBuilder.build());
+        locationClient.addGeofences(fences, getTransitionPendingIntent(), new LocationClient.OnAddGeofencesResultListener() {
+            @Override
+            public void onAddGeofencesResult(int i, String[] strings) {
+                Toast.makeText(MainActivity.this, "New Home location set", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+    }
+
+    private PendingIntent getTransitionPendingIntent() {
+        // Create an explicit Intent
+        Intent intent = new Intent(this, GeofenceTransitionService.class);
+        /*
+         * Return the PendingIntent
+         */
+        return PendingIntent.getService(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    @Override
+    public void onConnected(Bundle bundle) {
+        currentLocation = locationClient.getLastLocation();
+        locationClient.requestLocationUpdates(locationUpdateRequest, locationUpdateListener);
+    }
+
+    @Override
+    public void onDisconnected() {
+
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+        /*
+         * Google Play services can resolve some errors it detects.
+         * If the error has a resolution, try sending an Intent to
+         * start a Google Play services activity that can resolve
+         * error.
+         */
+        if (connectionResult.hasResolution()) {
+            try {
+                // Start an Activity that tries to resolve the error
+                connectionResult.startResolutionForResult(
+                        this,
+                        CONNECTION_FAILURE_RESOLUTION_REQUEST);
+                /*
+                 * Thrown if Google Play services canceled the original
+                 * PendingIntent
+                 */
+            } catch (IntentSender.SendIntentException e) {
+                // Log the error
+                Log.e(TAG, "Failed to resolve connection issue", e);
+            }
+        } else {
+            Toast.makeText(this, "Failed to set geo location: " + connectionResult.getErrorCode(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     class BrowseRegistryListener extends DefaultRegistryListener {

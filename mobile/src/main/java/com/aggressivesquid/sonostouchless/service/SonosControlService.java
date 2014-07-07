@@ -57,15 +57,12 @@ public class SonosControlService extends IntentService {
         return device.getDetails().getManufacturerDetails().getManufacturer().contains("Sonos");
     }
 
-    /**
-     * Creates an IntentService.  Invoked by your subclass's constructor.
-     *
-     * @param name Used to name the worker thread, important only for debugging.
-     */
+    @SuppressWarnings("unused")
     public SonosControlService(String name) {
         super(name);
     }
 
+    @SuppressWarnings("unused")
     public SonosControlService() {
         super("SonosControlService");
     }

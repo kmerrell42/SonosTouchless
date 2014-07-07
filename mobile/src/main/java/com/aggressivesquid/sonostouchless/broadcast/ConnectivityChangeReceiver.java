@@ -4,9 +4,16 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
+import android.util.Log;
+
+import com.aggressivesquid.sonostouchless.di.Container;
+import com.aggressivesquid.sonostouchless.model.user.UserDataDao;
 import com.aggressivesquid.sonostouchless.service.SonosControlService;
 
 public class ConnectivityChangeReceiver extends BroadcastReceiver {
+    public static final String TAG = ConnectivityChangeReceiver.class.getSimpleName();
+    private UserDataDao userDataDao = Container.getInstance().getUserDataDao();
+
     public ConnectivityChangeReceiver() {
     }
 
@@ -16,10 +23,14 @@ public class ConnectivityChangeReceiver extends BroadcastReceiver {
 
         final android.net.NetworkInfo wifi = connMgr.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 
-        if (wifi.isConnected()) {
-            // TODO: Only do this if the user has left the geofence and has returned
+        if (wifi.isConnected() && userDataDao.hasUserLeftFence()) {
+            Log.d(TAG, "Wifi connected and we have left the fence at some point");
             Intent serviceIntent = new Intent(context, SonosControlService.class);
             context.startService(serviceIntent);
+
+            // Reset the flag since we do not want to start the service until the user has left,
+            // then re-entered the fence. This prevents connectivity blips from triggering unwanted autoplay
+            userDataDao.setUserLeftFence(false);
         }
     }
 }
